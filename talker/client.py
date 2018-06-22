@@ -24,12 +24,12 @@ class PokerClient(object):
     def __init__(self):
         self._name_hash = None
         self._chips = 0
-        self._cards = []
-        self._board = []
         self._big_blind = None
         self._small_blind = None
 
         self.minBet = 0
+        self._chards = []
+        self._board = []
 
     @property
     def name_hash(self):
@@ -39,6 +39,21 @@ class PokerClient(object):
             self._name_hash = m.hexdigest()
         return self._name_hash
 
+    ##### Useful information for prediction
+    @property
+    def chards(self):
+        return self._chards
+    @chards.setter
+    def chards(self, value):
+        self._chards = [card[:1] + card[1:].lower() for card in value]
+
+    @property
+    def board(self):
+        return self._board
+    @board.setter
+    def board(self, value):
+        self._board = [card[:1] + card[1:].lower() for card in value]
+
     @property
     def is_big_blind(self):
         return self._big_blind == self.name_hash
@@ -46,6 +61,18 @@ class PokerClient(object):
     @property
     def is_small_blind(self):
         return self._small_blind == self.name_hash
+
+    @property
+    def my_card_raking(self):
+        if not all([self.chards, self.board]):
+            print "Cards: board:%s, mine:%s" % (self.board, self.chards)
+            return -1 # worst
+
+        from holdem.card import Card
+        print "My cards: %s, %s" % (self.board, self.chards)
+        return Card.get_card_suite(self.board, self.chards)
+
+    ################################################
 
     def _send_event(self, event_name, data=None):
         retry = 0
@@ -79,11 +106,9 @@ class PokerClient(object):
 
     ##### action function ########
     def _act_new_peer(self, action, data):
-        print len(data)
         print "Game Stat: {}".format(action)
 
     def _act_new_round(self, action, data):
-        print len(data)
         print "Game Stat: {}".format(action)
 
         p = self.search(data["players"])
@@ -96,8 +121,9 @@ class PokerClient(object):
 
     def _act_deal(self, action, data):
         print "Game Stat: {}".format(action)
+        print "Table info: %s" % data["table"]
         t = data["table"]
-        self._board = t["board"]
+        self.board = t["board"]
 
     def _act_action(self, do_act, bet_times=1):
 
@@ -116,7 +142,7 @@ class PokerClient(object):
         else:
             a = { "action": 'allin', "amount": self.minBet}
 
-        print "current action is %s !!!" % ACT_STR[do_act]
+        print "My card ranking is %s, current action is %s !!!" % (self.my_card_raking, ACT_STR[do_act])
 
         return self._send_event(EVNETNAME.ACTION, a)
 

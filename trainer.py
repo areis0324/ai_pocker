@@ -33,6 +33,8 @@ n_gain = 2                  # [1,0]:win, [0,1]:lose
 # x y placeholder
 x = tf.placeholder(tf.float32, [None, n_steps, n_inputs])
 y = tf.placeholder(tf.float32, [None, n_gain])
+# seq_length_batch for the step information
+s = tf.placeholder(tf.float32, [None, n_steps])
 
 # weights biases definition
 weights = {
@@ -47,6 +49,7 @@ biases = {
     # shape (2, )
     'out': tf.Variable(tf.constant(0.1, shape=[n_gain, ]))
 }
+
 
 def RNN(X, weights, biases):
     ## Translate X from 3-d to 2-d ##

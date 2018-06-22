@@ -1,8 +1,8 @@
 import os
 import numpy as np
 from operator import add
-#from holdem.holdem_calc import holdem_cal
-from card import Card
+from holdem.holdem_calc import holdem_cal
+from holdem.card import Card
 
 
 #pylint:disable=all
@@ -269,15 +269,15 @@ class Provider(object):
 if __name__ == '__main__':
     game = Game("../data/IRCdata/holdem/199505/")
     table_info = game.get_game_info('799891180')
-
-    i = 0
-    for x, y in Provider.next_batch(100):
-        i += 1
-        print x, y
-        if i > 0:
-            break
+    # print table_info
+    # i = 0
+    # for x, y in Provider.next_batch(1):
+    #     i += 1
+    #     print x, y
+    #     if i > 0:
+    #         break
 
     # print table_info
     # print game.get_features(table_info)
-    #print holdem_cal(["Ad", "Kd"], ["Kc", "Qs", "2h","Ah"])
+    print holdem_cal(["Ad", "Kd"], ["Kc", "Qs", "2h","Ah"])
     # print holdem_cal(["Ad", "Kd"], [])
