@@ -5,7 +5,7 @@ from talker.action import *
 
 
 class RNNPlayer(PokerClient):
-    CLIENT_NAME = "ramen1"
+    CLIENT_NAME = "austin"
 
     def predict(self):
         return RAISE

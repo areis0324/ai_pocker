@@ -19,7 +19,7 @@ RETRY = 3
 
 
 class PokerClient(object):
-    CLIENT_NAME = "ramen"
+    CLIENT_NAME = "player1"
 
     def __init__(self):
         self._name_hash = None
@@ -71,6 +71,7 @@ class PokerClient(object):
                 return p
 
     def join(self):
+        print "%s tries to join.." % self.CLIENT_NAME
         return self._send_event(EVNETNAME.JOIN, {"playerName": self.CLIENT_NAME})
 
     def reload(self):
@@ -170,6 +171,13 @@ class PokerClient(object):
     def doListen(self):
 
         try:
+            # ws.send(json.dumps({
+            #     "eventName": "__join",
+            #     "data": {
+            #         "playerName": "player1"
+            #     }
+            # }))
+
             if self.join():
                 print "connected!!"
             else:
