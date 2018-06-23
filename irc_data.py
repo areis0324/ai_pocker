@@ -14,7 +14,6 @@ TABLE_FILE = "hdb"
 PLAYER_FILE = "hroster"
 PLAYER_RECORD_FILE = "pdb/pdb.{}"
 
-
 class Game(object):
     def __init__(self, data_path=None):
         self.table = {}
@@ -26,14 +25,14 @@ class Game(object):
             read_lines = fp.readlines()
             for l in read_lines:
                 l = l.split()
+
+                #798758687   5  9803  9  5/105   4/265   3/445    3/485    Jc 9c 7h Ad Kh
                 publicCards = l[8:]
-                # # append public card
-                # if len(publicCards) < 5:
-                #     publicCards.extend(['-' for _ in xrange(5 - len(publicCards))])
 
                 # just only save the completed game
                 if len(publicCards) != 5:
                     continue
+
                 self.table[l[0]] = {
                     "tableNo": l[0],
                     "numPlayers": l[3],
@@ -125,7 +124,7 @@ class Game(object):
 
         return self.player_records.get(player, None)
 
-    def get_features(self, table_info):
+    def get_features(self, table_info, round_seq):
         ############################################
         # roundName, raiseCount, betCount,privateCards, publicCards, evaluate,  histogram
         #   0      ,    1      , 2       , 1, 23      , 1, 2, 4, 0,0,  7624, TBD
@@ -155,40 +154,43 @@ class Game(object):
         publicCards = [Card(card).serial for card in table_info["publicCards"]]
 
         def _extract_features(records):
-            # "Deal", "Flop", "Turn", "River"
+            # "Deal", "Flop", "Turn", "River": 0, 1, 2, 3
             privateCards = [Card(card).serial for card in records["privateCards"]]
 
-            # import pdb
-            # pdb.set_trace()
-            deal_round = [0, raiseCount[0], betCount[0],
-                          privateCards[0],
-                          privateCards[1],
-                          0, 0, 0, 0, 0,
-                          0]
+            deal_round = [round_seq, raiseCount[0], betCount[0],
+                          privateCards[0], privateCards[1],
+                          0, 0, 0, 0, 0, # public card
+                          0, # card ranking
+                          ]
+                          #+ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # card histogram
 
-            flop_round = [1, raiseCount[1], betCount[1],
-                          privateCards[0],
-                          privateCards[1],
+            flop_round = [round_seq, raiseCount[1], betCount[1],
+                          privateCards[0], privateCards[1],
                           publicCards[0],
                           publicCards[1],
                           publicCards[2],
                           0,
                           0,
-                          Card.get_card_suite(table_info["publicCards"][0:3], records["privateCards"])] \
-                          if len(publicCards) >= 3 else [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                          Card.get_card_suite(table_info["publicCards"][0:3], records["privateCards"])
+                          ] \
+                          if round_seq >= 1 else \
+                          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]# + [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # card histogram
+                          #+ holdem_cal(records["privateCards"], table_info["publicCards"][0:3])[0] \
 
-            turn_round = [2, raiseCount[2], betCount[2],
-                          privateCards[0],
-                          privateCards[1],
+            turn_round = [round_seq, raiseCount[2], betCount[2],
+                          privateCards[0], privateCards[1],
                           publicCards[0],
                           publicCards[1],
                           publicCards[2],
                           publicCards[3], 0,
-                          Card.get_card_suite(table_info["publicCards"][0:4], records["privateCards"])
-                          ] if len(publicCards) >= 4 \
-                          else [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                          Card.get_card_suite(table_info["publicCards"][0:4], records["privateCards"]),
+                          ] \
+                          if round_seq >= 2 else \
+                          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]# + [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # card histogram
+                          #+ holdem_cal(records["privateCards"], table_info["publicCards"][0:4])[0] \
 
-            river_round = [3, raiseCount[3], betCount[3],
+
+            river_round = [round_seq, raiseCount[3], betCount[3],
                           privateCards[0],
                           privateCards[1],
                           publicCards[0],
@@ -196,9 +198,11 @@ class Game(object):
                           publicCards[2],
                           publicCards[3],
                           publicCards[4],
-                          Card.get_card_suite(table_info["publicCards"][0:5], records["privateCards"])
-                          ] if len(publicCards) == 5 \
-                          else [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                          Card.get_card_suite(table_info["publicCards"][0:5], records["privateCards"]),
+                          ] \
+                          if round_seq == 3 else \
+                          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]# + [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # card histogram
+                          #+ holdem_cal(records["privateCards"], table_info["publicCards"][0:5])[0] \
 
             return [deal_round, flop_round, turn_round, river_round]
 
@@ -226,43 +230,66 @@ class Game(object):
 
 class Provider(object):
 
+
     @staticmethod
     def next_batch(batch_size):
 
         x_data = []
         y_data = []
 
+        # to list the train data folder
         for dir_name in os.listdir(DATA_PATH):
             dir_name = os.path.join(DATA_PATH, dir_name)
+
+            # record the training
+            with open("train.log", "w+") as f:
+                f.write(dir_name)
+
             try:
                 game = Game(dir_name)
+
+                # to iterate the all game data in YYYY-MM
                 for table_no in game.table:
                     try:
+                        # get the specified game record
                         table_info = game.get_game_info(table_no)
-                        features = game.get_features(table_info)
-                        if not features:
-                            continue
-                        x_data += features
-                        # the 1st player is winner
-                        y_data += [1] + [0 for _ in xrange(len(features) - 1)]
 
-                        # x_data.append(np.array(features))
-                        # y_data.append(np.array([1] + [0 for _ in xrange(len(features) - 1)]))
+                        # Extract the 4 rounds data in this game
+                        # Train the data step by step
+                        # 0:deal, 1:flop, 2:turn, 3:river
 
-                        if len(y_data) > batch_size:
-                            y_data = y_data[:batch_size]
-                            x_data = x_data[:batch_size]
+                        # skip "Deal" since it has too less features
+                        for seq in (1, 2, 3):
 
-                            y_data =[np.array([yi, yi ^ 1]) for yi in y_data]
+                            features = game.get_features(table_info, seq)
 
-                            yield np.array(x_data, dtype=np.float32), np.array(y_data, dtype=np.float32)
-                            y_data = []
-                            x_data = []
+                            if not features:
+                                continue
+
+                            x_data += features
+                            # the 1st player is winner
+                            y_data += [1] + [0 for _ in xrange(len(features) - 1)]
+
+                            if len(y_data) > batch_size:
+                                y_data = y_data[:batch_size]
+                                x_data = x_data[:batch_size]
+
+                                # for RNN seq_length_batch, which step is useful
+                                batch_seq = np.full(batch_size, seq + 1, dtype=np.int)
+
+                                # label this instance
+                                y_data =[np.array([yi, yi ^ 1]) for yi in y_data]
+
+                                # import pdb
+                                # pdb.set_trace()
+                                yield np.array(x_data, dtype=np.float32), np.array(y_data, dtype=np.float32), batch_seq
+                                y_data = []
+                                x_data = []
 
                     except BaseException as err:
-                        print err
+                        raise
             except BaseException as err:
-                    print err
+                    raise
 
         print "===== no training set ===="
 
@@ -280,4 +307,4 @@ if __name__ == '__main__':
     # print table_info
     # print game.get_features(table_info)
     print holdem_cal(["Ad", "Kd"], ["Kc", "Qs", "2h","Ah"])
-    # print holdem_cal(["Ad", "Kd"], [])
+    #print holdem_cal(["Ad", "Kd"], [])

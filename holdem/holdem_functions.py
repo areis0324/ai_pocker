@@ -269,7 +269,6 @@ def get_results(hole_cards, winner_list, result_histograms):
 
     results = []
     for player_index, histogram in enumerate(result_histograms):
-        print "Player" + str(player_index + 1) + " Histogram: "
         results.append([float(elem) / float_iterations for index, elem in enumerate(histogram)])
     return results
 
