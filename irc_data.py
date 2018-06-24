@@ -3,6 +3,7 @@ import numpy as np
 from operator import add
 from holdem.holdem_calc import holdem_cal
 from holdem.card import Card
+from talker.action import Round
 
 
 #pylint:disable=all
@@ -237,13 +238,19 @@ class Provider(object):
         x_data = []
         y_data = []
 
+        train_cursor = open("train.log", "r").read() if os.path.exists("train.log") else 0
+
         # to list the train data folder
-        for dir_name in os.listdir(DATA_PATH):
+        for dir_name in sorted(os.listdir(DATA_PATH)):
             dir_name = os.path.join(DATA_PATH, dir_name)
+            cursor = os.path.basename(dir_name)
+
+            if cursor <= train_cursor:
+                continue
 
             # record the training
             with open("train.log", "w+") as f:
-                f.write(dir_name)
+                f.write(cursor)
 
             try:
                 game = Game(dir_name)
@@ -259,7 +266,7 @@ class Provider(object):
                         # 0:deal, 1:flop, 2:turn, 3:river
 
                         # skip "Deal" since it has too less features
-                        for seq in (1, 2, 3):
+                        for seq in (Round.FLOP, Round.TURN, Round.RIVER):
 
                             features = game.get_features(table_info, seq)
 

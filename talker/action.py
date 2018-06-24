@@ -14,3 +14,11 @@ ACT_STR = {
     CALL: "call",
     ALL_IN: "all_in",
 }
+
+
+class Round(object):
+    DEAL = 0
+    FLOP = 1
+    TURN = 2
+    RIVER = 3
+    ALL = [DEAL, FLOP, TURN, RIVER]

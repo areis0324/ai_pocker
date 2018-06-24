@@ -11,7 +11,7 @@ MODEL_PATH = "./model/rnn.ckpt"
 
 # hyperparameters
 lr = 0.001                  # learning rate
-training_iters = 1000     # train step
+training_iters = 100000     # train step
 batch_size = 128
 
 ############################################
@@ -75,14 +75,13 @@ def RNN(X, weights, biases):
 pred = RNN(x, weights, biases)
 
 with tf.name_scope('average_cost'):
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
-    cross_entropy = tf.reduce_mean(cost)
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=pred, labels=y))
 
 tf.summary.scalar('cost', cost)
-tf.summary.scalar('cross_entropy', cross_entropy)
+#tf.summary.scalar('cross_entropy', cross_entropy)
 
-#train_op = tf.train.AdamOptimizer(lr).minimize(cost)
-train_op = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
+train_op = tf.train.AdamOptimizer(lr).minimize(cost)
+#train_op = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
 
 with tf.name_scope('accuracy'):
     with tf.name_scope('correct_prediction'):
@@ -99,6 +98,9 @@ saver = tf.train.Saver()
 
 
 def train_model(sess):
+    # load_model before training
+    #load_model(sess)
+
     # tensor board
     merged = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter('.tfboard/.train_rnn', sess.graph)
@@ -126,12 +128,14 @@ def train_model(sess):
         train_writer.add_summary(summary, step)
 
         if step % 20 == 0:
-            summary, acc = sess.run([merged, accuracy], feed_dict={
+            res, summary, acc = sess.run([pred, merged, accuracy], feed_dict={
                 x: batch_xs,
                 y: batch_ys,
                 s: batch_seq
             })
+            #print res, acc, batch_ys
             print acc
+
             test_writer.add_summary(summary, step)
 
         step += 1
@@ -144,34 +148,35 @@ def load_model(sess):
     # train_model(sess)
 
 
-def predict():
+def predict(batch_xs, seq):
     with tf.Session() as sess:
         load_model(sess)
-        #train_model(sess)
+        # train_model(sess)
 
-        for batch_xs, batch_ys, batch_seq in Provider.next_batch(1):
+        extend_xs = np.zeros((batch_size, n_steps, n_inputs), dtype=batch_xs.dtype)
+        extend_xs[0] = batch_xs
+        batch_xs = extend_xs.reshape([batch_size, n_steps, n_inputs])
 
-            extend_xs = np.zeros((batch_size, n_steps, n_inputs), dtype=batch_xs.dtype)
-            extend_xs[0] = batch_xs
-            batch_xs = extend_xs.reshape([batch_size, n_steps, n_inputs])
+        batch_seq = np.full(batch_size, 1, dtype=np.int)
+        batch_seq[0] = seq
 
-            extend_seq = np.full(batch_size, 1, dtype=np.int)
-            extend_seq[0] = batch_seq[0]
-            batch_seq = extend_seq
+        return sess.run(pred, feed_dict={
+            x: batch_xs,
+            s: batch_seq
+        })[0]
 
-            print sess.run(pred, feed_dict={
-                x: batch_xs,
-                s: batch_seq
-            })
-            break
 
+def _get_test_x():
+    for batch_xs, batch_ys, batch_seq in Provider.next_batch(1):
+        return batch_xs, batch_seq[0]
 
 if __name__ == '__main__':
     try:
         with tf.Session() as sess:
-            #train_model(sess)
-            #load_model(sess)
-            predict()
+            train_model(sess)
+            # load_model(sess)
+            # predict_x, predict_s = _get_test_x()
+            # print predict(predict_x, predict_s)
     except BaseException as err:
         print err
         raise
