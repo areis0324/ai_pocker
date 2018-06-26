@@ -12,7 +12,7 @@ ACT_STR = {
     BET: "bet",
     RAISE: "raise",
     CALL: "call",
-    ALL_IN: "all_in",
+    ALL_IN: "allin",
 }
 
 
