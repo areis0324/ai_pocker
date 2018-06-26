@@ -6,11 +6,11 @@ class BasicPlayer(PokerClient):
     CLIENT_NAME = "austin"
 
     def predict(self):
-        if self.my_card_raking == -1:
+        if self.my_card_ranking == -1:
             return CALL
-        elif self.my_card_raking > 5000:
+        elif self.my_card_ranking > 5000:
             return FOLD
-        elif self.my_card_raking > 3000:
+        elif self.my_card_ranking > 3000:
             return CALL
         return RAISE
 
